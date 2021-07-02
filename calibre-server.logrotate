@@ -1,0 +1,9 @@
+/var/log/calibre-server.log {
+    create 0660 calibre calibre
+    minsize 10M
+    size 10M
+    monthly
+    rotate 6
+    compress
+    missingok
+}

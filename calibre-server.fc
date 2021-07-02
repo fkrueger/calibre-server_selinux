@@ -1,0 +1,28 @@
+/opt/calibre										-d	gen_context(system_u:object_r:calibre_home_dir_t,s0)
+/opt/calibre/calibre-server								--	gen_context(system_u:object_r:calibre_exec_t,s0)
+# exec files
+/opt/calibre/calibre(|-complete|-customize|db|-debug|-parallel|_postinstall|-smtp)	--	gen_context(system_u:object_r:calibre_exec_t,s0)
+/opt/calibre/ebook-(convert|device|edit|meta|polish|viewer)				--	gen_context(system_u:object_r:calibre_exec_t,s0)
+/opt/calibre/(fetch-ebook-metadata|lrf.*|lrs.*|markdown-calibre|web2disk)		--	gen_context(system_u:object_r:calibre_exec_t,s0)
+# dirs
+/opt/calibre/bin									-d	gen_context(system_u:object_r:calibre_bin_t,s0)
+/opt/calibre/bin/.*									--	gen_context(system_u:object_r:calibre_exec_t,s0)
+/opt/calibre/lib(|exec)(/.*)?									gen_context(system_u:object_r:calibre_lib_t,s0)
+/opt/calibre/plugins(/.*)?									gen_context(system_u:object_r:calibre_plugins_t,s0)
+/opt/calibre/resources(/.*)?									gen_context(system_u:object_r:calibre_res_t,s0)
+/opt/calibre/translations(/.*)?									gen_context(system_u:object_r:calibre_res_t,s0)
+# XXX calibre likes to save stuff in ~/.config/ and ~/.cache/ -> we use a homedir, that is not user_home_dir_t, so we dont have to allow general user homedir manage access.
+/opt/home/calibre									-d	gen_context(system_u:object_r:calibre_home_dir_t,s0)
+/opt/home/calibre/tmp(.*)?									gen_context(system_u:object_r:calibre_tmp_t,s0)
+/opt/home/calibre/.cache(.*)?									gen_context(system_u:object_r:calibre_cache_t,s0)
+/opt/home/calibre/.config(/.*)?									gen_context(system_u:object_r:calibre_config_t,s0)
+#
+# our library in user homedir
+/opt/Calibre[^/]Library(/.*)?									gen_context(system_u:object_r:calibre_library_t,s0)
+/opt/home/calibre/Calibre[^/]Library(/.*)?							gen_context(system_u:object_r:calibre_library_t,s0)
+/opt/[^/]+/Calibre[^/]Library(/.*)?								gen_context(system_u:object_r:calibre_library_t,s0)
+/opt/home/[^/]+/Calibre[^/]Library(/.*)?							gen_context(system_u:object_r:calibre_library_t,s0)
+#
+# catch all for all other stuff added by newer releases.
+/opt/calibre/[^/]*                    							--	gen_context(system_u:object_r:calibre_files_t,s0)
+/var/log/calibre-server.log								--	gen_context(system_u:object_r:calibre_log_t,s0)

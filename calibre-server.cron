@@ -1,0 +1,1 @@
+0 * * * *  root  /usr/sbin/service calibre-server restart >/dev/null 2>&1

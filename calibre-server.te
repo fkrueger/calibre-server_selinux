@@ -1,0 +1,224 @@
+policy_module(calibre-server, 20210619.1.1)
+
+# vim: softtabstop=2 tabstop=2 shiftwidth=2 expandtab
+
+########################################
+#
+# Declarations
+#
+
+require {
+  type system_cronjob_t;
+  type unconfined_t;
+  class dir { add_name create getattr search write };
+  class file { create getattr write };
+
+  type user_home_dir_t;
+
+  # other permissions:
+  type setroubleshootd_t;
+  type unconfined_t;
+  type unconfined_service_t;
+}
+
+
+## our contexts:
+type calibre_t;
+type calibre_exec_t;
+
+type calibre_home_dir_t;
+
+type calibre_bin_t;
+type calibre_cache_t;
+type calibre_config_t;
+type calibre_files_t;
+type calibre_lib_t;
+type calibre_library_t;
+type calibre_log_t;
+type calibre_plugins_t;
+type calibre_port_t;
+type calibre_res_t;
+type calibre_tmp_dir_t;
+type calibre_tmp_t;
+
+
+##
+## >>> See accompanying readme.md for more info.
+##
+
+
+
+
+## DEBUG CYCLE:
+# echo "XX0"; make -f /usr/share/selinux/devel/Makefile
+# echo "XX1"; for i in 9043 9080 9443; do semanage port -d -t calibre_port_t -p tcp $i; done; semanage port -d -t calibre_port_t -p udp 5353; semanage fcontext -d '/home/[^/]+/calibre(/.*)?'; semodule -r calibre-server
+# echo "XX2"; semodule -i /root/selinux/calibre-server/calibre-server.pp ; for i in 9080 9043 9443; do semanage port -a -t calibre_port_t -p tcp $i; done; semanage port -a -t calibre_port_t -p udp 5353; semanage fcontext -a -e '/opt/calibre(/.*)?' '/home/[^/]+/calibre(/.*)?'; restorecon -vR /opt/ /home/ /var/log/calibre-server.log
+# echo "XX3"; service calibre-server stop; rm -f /var/log/audit/audit.log ; service auditd restart; service calibre-server start
+# echo "XX4"; audit2allow -R -i /var/log/audit/audit.log >/root/x ; vi /root/x
+##
+
+
+corenet_port(calibre_port_t)
+# XXX we also use: howl_port_t (5353/udp), ocsp_port_t (9080/tcp)
+
+init_daemon_domain(calibre_t, calibre_exec_t)
+filetrans_pattern(calibre_t, calibre_tmp_dir_t, calibre_tmp_t, file)
+
+search_dirs_pattern(init_t, calibre_home_dir_t, calibre_home_dir_t)
+search_dirs_pattern(init_t, calibre_library_t, calibre_library_t)
+search_dirs_pattern(init_t, calibre_bin_t, calibre_bin_t)
+
+dontaudit init_t unconfined_t:process siginh;
+dontaudit init_t unconfined_service_t:process siginh;
+
+
+
+tunable_policy(`calibre_allow_userhomedir_manage',`',`
+    gnome_delete_home_config_dirs(calibre_t)
+    gnome_manage_cache_home_dir(calibre_t)
+    gnome_manage_generic_cache_files(calibre_t)
+    gnome_manage_home_config(calibre_t)
+    allow calibre_t user_home_dir_t:dir list_dir_perms;
+    files_search_home(calibre_t)
+    userdom_manage_user_home_content_dirs(calibre_t)
+    userdom_manage_user_home_content_files(calibre_t)
+')
+
+## <desc>
+## <p>
+## Allow Calibre general (SElinux) manage - access to all user_home_dir_t / user home dirs. (NOT RECOMMENDED!)
+## - Only needed when you want to have the 'Calibre Library' in your user home dir.
+## </p>
+## </desc>
+gen_tunable(calibre_allow_userhomedir_manage, false)
+
+
+
+
+## calibre_t macros:
+# self: XXX do better than just pasting this unchecked.
+allow calibre_t self:netlink_route_socket { bind create getattr nlmsg_read read write };
+allow calibre_t self:process setsched;
+allow calibre_t self:tcp_socket { accept bind create getattr getopt ioctl listen read setopt write };
+allow calibre_t self:udp_socket { bind create read setopt write };
+allow calibre_t self:unix_dgram_socket { create ioctl };
+
+# general:
+corecmd_exec_bin(calibre_t)
+
+# network related:
+corenet_tcp_bind_generic_node(calibre_t)
+corenet_tcp_bind_ocsp_port(calibre_t)
+corenet_udp_bind_generic_node(calibre_t)
+corenet_udp_bind_howl_port(calibre_t)
+kernel_read_network_state(calibre_t)
+allow calibre_t self:tcp_socket shutdown;
+
+# fs related:
+apache_search_config(calibre_t)
+fs_getattr_xattr_fs(calibre_t)
+logging_read_generic_logs(calibre_t)
+
+fs_associate({ calibre_t calibre_cache_t calibre_config_t calibre_exec_t calibre_files_t calibre_home_dir_t calibre_bin_t calibre_files_t calibre_lib_t calibre_library_t calibre_log_t calibre_plugins_t calibre_port_t calibre_res_t calibre_tmp_dir_t calibre_tmp_t })
+
+
+# lib related:
+libs_exec_ldconfig(calibre_t)
+
+# cert related:
+miscfiles_read_generic_certs(calibre_t)
+# sssd related:
+sssd_read_public_files(calibre_t)
+sssd_search_lib(calibre_t)
+
+# tmp ??
+#files_manage_generic_tmp_dirs(calibre_t)
+#files_manage_generic_tmp_files(calibre_t)
+
+## if calibre library resides in /home/user/Calibre Library/:
+#gnome_delete_home_config_dirs(calibre_t)
+#gnome_manage_cache_home_dir(calibre_t)
+#gnome_manage_generic_cache_files(calibre_t)
+#gnome_manage_home_config(calibre_t)
+#userdom_list_user_home_dirs(calibre_t)
+#userdom_manage_user_home_content_dirs(calibre_t)
+#userdom_manage_user_home_content_files(calibre_t)
+
+# startup:
+allow calibre_t calibre_bin_t:dir getattr_dir_perms;
+list_dirs_pattern(calibre_t,calibre_bin_t,calibre_bin_t)
+read_files_pattern(calibre_t,calibre_bin_t,calibre_bin_t)
+exec_files_pattern(calibre_t,calibre_bin_t,calibre_bin_t)
+
+
+allow calibre_t calibre_cache_t:dir getattr_dir_perms;
+rw_dirs_pattern(calibre_t,calibre_cache_t,calibre_cache_t)
+manage_dirs_pattern(calibre_t,calibre_cache_t,calibre_cache_t)
+manage_files_pattern(calibre_t,calibre_cache_t,calibre_cache_t)
+
+allow calibre_t calibre_config_t:dir getattr_dir_perms;
+rw_dirs_pattern(calibre_t,calibre_config_t,calibre_config_t)
+manage_files_pattern(calibre_t,calibre_config_t,calibre_config_t)
+
+exec_files_pattern(calibre_t,calibre_exec_t,calibre_exec_t)
+
+list_dirs_pattern(calibre_t,calibre_home_dir_t,calibre_home_dir_t)
+
+allow calibre_t calibre_lib_t:dir getattr_dir_perms;
+list_dirs_pattern(calibre_t,calibre_lib_t,calibre_lib_t)
+read_files_pattern(calibre_t,calibre_lib_t,calibre_lib_t)
+exec_files_pattern(calibre_t,calibre_lib_t,calibre_lib_t)
+
+manage_files_pattern(calibre_t,calibre_log_t,calibre_log_t)
+
+allow calibre_t calibre_library_t:dir getattr_dir_perms;
+rw_dirs_pattern(calibre_t,calibre_library_t,calibre_library_t)
+manage_dirs_pattern(calibre_t,calibre_library_t,calibre_library_t)
+manage_files_pattern(calibre_t,calibre_library_t,calibre_library_t)
+
+allow calibre_t calibre_plugins_t:dir getattr_dir_perms;
+list_dirs_pattern(calibre_t,calibre_plugins_t,calibre_plugins_t)
+read_files_pattern(calibre_t,calibre_plugins_t,calibre_plugins_t)
+exec_files_pattern(calibre_t,calibre_plugins_t,calibre_plugins_t)
+
+allow calibre_t calibre_res_t:dir getattr_dir_perms;
+list_dirs_pattern(calibre_t,calibre_res_t,calibre_res_t)
+read_files_pattern(calibre_t,calibre_res_t,calibre_res_t)
+
+allow calibre_t calibre_tmp_t:dir getattr_dir_perms;
+rw_dirs_pattern(calibre_t,calibre_tmp_t,calibre_tmp_t)
+manage_dirs_pattern(calibre_t,calibre_tmp_t,calibre_tmp_t)
+manage_files_pattern(calibre_t,calibre_tmp_t,calibre_tmp_t)
+
+
+
+
+
+
+
+
+
+## setroubleshootd_t
+getattr_dirs_pattern(setroubleshootd_t, { calibre_t calibre_cache_t calibre_config_t calibre_exec_t calibre_files_t calibre_home_dir_t calibre_bin_t calibre_files_t calibre_lib_t calibre_library_t calibre_log_t calibre_plugins_t calibre_port_t calibre_res_t calibre_tmp_dir_t calibre_tmp_t }, { calibre_t calibre_cache_t calibre_config_t calibre_exec_t calibre_files_t calibre_home_dir_t calibre_bin_t calibre_files_t calibre_lib_t calibre_library_t calibre_log_t calibre_plugins_t calibre_port_t calibre_res_t calibre_tmp_dir_t calibre_tmp_t })
+search_dirs_pattern(setroubleshootd_t, { calibre_t calibre_cache_t calibre_config_t calibre_exec_t calibre_files_t calibre_home_dir_t calibre_bin_t calibre_files_t calibre_lib_t calibre_library_t calibre_log_t calibre_plugins_t calibre_port_t calibre_res_t calibre_tmp_dir_t calibre_tmp_t }, { calibre_t calibre_cache_t calibre_config_t calibre_exec_t calibre_files_t calibre_home_dir_t calibre_bin_t calibre_files_t calibre_lib_t calibre_library_t calibre_log_t calibre_plugins_t calibre_port_t calibre_res_t calibre_tmp_dir_t calibre_tmp_t })
+getattr_files_pattern(setroubleshootd_t, { calibre_t calibre_cache_t calibre_config_t calibre_exec_t calibre_files_t calibre_home_dir_t calibre_bin_t calibre_files_t calibre_lib_t calibre_library_t calibre_log_t calibre_plugins_t calibre_port_t calibre_res_t calibre_tmp_dir_t calibre_tmp_t }, { calibre_t calibre_cache_t calibre_config_t calibre_exec_t calibre_files_t calibre_home_dir_t calibre_bin_t calibre_files_t calibre_lib_t calibre_library_t calibre_log_t calibre_plugins_t calibre_port_t calibre_res_t calibre_tmp_dir_t calibre_tmp_t })
+read_files_pattern(setroubleshootd_t, { calibre_t calibre_cache_t calibre_config_t calibre_exec_t calibre_files_t calibre_home_dir_t calibre_bin_t calibre_files_t calibre_lib_t calibre_library_t calibre_log_t calibre_plugins_t calibre_port_t calibre_res_t calibre_tmp_dir_t calibre_tmp_t }, { calibre_t calibre_cache_t calibre_config_t calibre_exec_t calibre_files_t calibre_home_dir_t calibre_bin_t calibre_files_t calibre_lib_t calibre_library_t calibre_log_t calibre_plugins_t calibre_port_t calibre_res_t calibre_tmp_dir_t calibre_tmp_t })
+
+## unconfined_service_t
+manage_dirs_pattern(unconfined_service_t, { calibre_t calibre_cache_t calibre_config_t calibre_exec_t calibre_files_t calibre_home_dir_t calibre_bin_t calibre_files_t calibre_lib_t calibre_library_t calibre_log_t calibre_plugins_t calibre_port_t calibre_res_t calibre_tmp_dir_t calibre_tmp_t }, { calibre_t calibre_cache_t calibre_config_t calibre_exec_t calibre_files_t calibre_home_dir_t calibre_bin_t calibre_files_t calibre_lib_t calibre_library_t calibre_log_t calibre_plugins_t calibre_port_t calibre_res_t calibre_tmp_dir_t calibre_tmp_t })
+exec_files_pattern(unconfined_service_t, { calibre_t calibre_cache_t calibre_config_t calibre_exec_t calibre_files_t calibre_home_dir_t calibre_bin_t calibre_files_t calibre_lib_t calibre_library_t calibre_log_t calibre_plugins_t calibre_port_t calibre_res_t calibre_tmp_dir_t calibre_tmp_t }, { calibre_t calibre_cache_t calibre_config_t calibre_exec_t calibre_files_t calibre_home_dir_t calibre_bin_t calibre_files_t calibre_lib_t calibre_library_t calibre_log_t calibre_plugins_t calibre_port_t calibre_res_t calibre_tmp_dir_t calibre_tmp_t })
+manage_files_pattern(unconfined_service_t, { calibre_t calibre_cache_t calibre_config_t calibre_exec_t calibre_files_t calibre_home_dir_t calibre_bin_t calibre_files_t calibre_lib_t calibre_library_t calibre_log_t calibre_plugins_t calibre_port_t calibre_res_t calibre_tmp_dir_t calibre_tmp_t }, { calibre_t calibre_cache_t calibre_config_t calibre_exec_t calibre_files_t calibre_home_dir_t calibre_bin_t calibre_files_t calibre_lib_t calibre_library_t calibre_log_t calibre_plugins_t calibre_port_t calibre_res_t calibre_tmp_dir_t calibre_tmp_t })
+manage_lnk_files_pattern(unconfined_service_t, { calibre_t calibre_cache_t calibre_config_t calibre_exec_t calibre_files_t calibre_home_dir_t calibre_bin_t calibre_files_t calibre_lib_t calibre_library_t calibre_log_t calibre_plugins_t calibre_port_t calibre_res_t calibre_tmp_dir_t calibre_tmp_t }, { calibre_t calibre_cache_t calibre_config_t calibre_exec_t calibre_files_t calibre_home_dir_t calibre_bin_t calibre_files_t calibre_lib_t calibre_library_t calibre_log_t calibre_plugins_t calibre_port_t calibre_res_t calibre_tmp_dir_t calibre_tmp_t })
+
+## unconfined_t
+# so we can restorecon our own files..
+allow unconfined_t {calibre_t calibre_cache_t calibre_config_t calibre_exec_t calibre_files_t calibre_home_dir_t calibre_bin_t calibre_files_t calibre_lib_t calibre_library_t calibre_log_t calibre_plugins_t calibre_port_t calibre_res_t calibre_tmp_dir_t calibre_tmp_t}:dir {relabelfrom relabelto};
+allow unconfined_t {calibre_t calibre_cache_t calibre_config_t calibre_exec_t calibre_files_t calibre_home_dir_t calibre_bin_t calibre_files_t calibre_lib_t calibre_library_t calibre_log_t calibre_plugins_t calibre_port_t calibre_res_t calibre_tmp_dir_t calibre_tmp_t}:file {relabelfrom relabelto};
+
+manage_dirs_pattern(unconfined_t, { calibre_t calibre_cache_t calibre_config_t calibre_exec_t calibre_files_t calibre_home_dir_t calibre_bin_t calibre_files_t calibre_lib_t calibre_library_t calibre_log_t calibre_plugins_t calibre_port_t calibre_res_t calibre_tmp_dir_t calibre_tmp_t }, { calibre_t calibre_cache_t calibre_config_t calibre_exec_t calibre_files_t calibre_home_dir_t calibre_bin_t calibre_files_t calibre_lib_t calibre_library_t calibre_log_t calibre_plugins_t calibre_port_t calibre_res_t calibre_tmp_dir_t calibre_tmp_t })
+exec_files_pattern(unconfined_t, { calibre_t calibre_cache_t calibre_config_t calibre_exec_t calibre_files_t calibre_home_dir_t calibre_bin_t calibre_files_t calibre_lib_t calibre_library_t calibre_log_t calibre_plugins_t calibre_port_t calibre_res_t calibre_tmp_dir_t calibre_tmp_t }, { calibre_t calibre_cache_t calibre_config_t calibre_exec_t calibre_files_t calibre_home_dir_t calibre_bin_t calibre_files_t calibre_lib_t calibre_library_t calibre_log_t calibre_plugins_t calibre_port_t calibre_res_t calibre_tmp_dir_t calibre_tmp_t })
+manage_files_pattern(unconfined_t, { calibre_t calibre_cache_t calibre_config_t calibre_exec_t calibre_files_t calibre_home_dir_t calibre_bin_t calibre_files_t calibre_lib_t calibre_library_t calibre_log_t calibre_plugins_t calibre_port_t calibre_res_t calibre_tmp_dir_t calibre_tmp_t }, { calibre_t calibre_cache_t calibre_config_t calibre_exec_t calibre_files_t calibre_home_dir_t calibre_bin_t calibre_files_t calibre_lib_t calibre_library_t calibre_log_t calibre_plugins_t calibre_port_t calibre_res_t calibre_tmp_dir_t calibre_tmp_t })
+manage_lnk_files_pattern(unconfined_t, { calibre_t calibre_cache_t calibre_config_t calibre_exec_t calibre_files_t calibre_home_dir_t calibre_bin_t calibre_files_t calibre_lib_t calibre_library_t calibre_log_t calibre_plugins_t calibre_port_t calibre_res_t calibre_tmp_dir_t calibre_tmp_t }, { calibre_t calibre_cache_t calibre_config_t calibre_exec_t calibre_files_t calibre_home_dir_t calibre_bin_t calibre_files_t calibre_lib_t calibre_library_t calibre_log_t calibre_plugins_t calibre_port_t calibre_res_t calibre_tmp_dir_t calibre_tmp_t })
+
+
+

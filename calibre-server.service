@@ -1,0 +1,22 @@
+[Unit]
+Description=Calibre server headless edition
+#After=remote-fs.target
+After=network-online.target time-sync.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=calibre
+#Restart=yes
+TimeoutSec=5min
+IgnoreSIGPIPE=no
+KillMode=process
+GuessMainPID=no
+RemainAfterExit=yes
+#SuccessExitStatus=5 6
+EnvironmentFile=/etc/sysconfig/calibre-server
+WorkingDirectory=/opt/home/calibre/Calibre Library/
+ExecStart=/opt/calibre/calibre-server --port=9080 --log=/var/log/calibre-server.log "/opt/home/calibre/Calibre Library/"
+
+WantedBy=multi-user.target
+

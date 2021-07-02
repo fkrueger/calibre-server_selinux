@@ -1,0 +1,96 @@
+--- /tmp/calibre_orig_installer.sh	2021-01-05 05:33:14.000000000 +0100
++++ /tmp/calibre_safer_installer.sh	2021-06-19 22:04:03.476000000 +0200
+@@ -48,7 +48,7 @@
+ # {{{
+ # HEREDOC_START
+ #!/usr/bin/env python
+-# vim:fileencoding=utf-8
++# vim:fileencoding=utf-8 softtabstop=4 tabstop=4 shiftwidth=4 expandtab
+ # License: GPLv3 Copyright: 2009, Kovid Goyal <kovid at kovidgoyal.net>
+ from __future__ import absolute_import, division, print_function, unicode_literals
+ 
+@@ -67,6 +67,8 @@
+ import tempfile
+ from contextlib import closing
+ 
++DEBUG = False
++
+ is64bit = platform.architecture()[0] == '64bit'
+ py3 = sys.version_info[0] > 2
+ enc = getattr(sys.stdout, 'encoding', 'utf-8') or 'utf-8'
+@@ -712,13 +714,73 @@
+         calibre_version = calibre_version.decode('utf-8')
+ 
+ 
++### XXX Done this way, the user can write-protect updates files in his calibre installation directory (think: schemes, resources).
++###     Also he could put his Calibre Library into the calibre installation directory without losing all this ebooks on every calibre-update.
++
++## rough set of files provided by original calibre, used in remove_calibreshit_instead_rm(..) lateron (from 2021-06-19)
++calibrefiles = [
++# dirs (./lib/, ./libexec/, ./plugins/, ./resources/, ./translations/)
++'lib/*.so',
++'lib/calibre-extensions/*.so',
++'libexec/QtWebEngineProcess',
++'plugins/wayland-decoration-client/*.so',
++'plugins/platforms/*.so',
++'plugins/iconengines/*.so',
++'plugins/wayland-shell-integration/*.so',
++'plugins/imageformats/*.so',
++'plugins/xcbglintegrations/*.so',
++'plugins/platforminputcontexts/*.so',
++'plugins/platforminputcontexts/*.so',
++'plugins/platformthemes/*.so',
++'plugins/sqldrivers/*.so',
++'plugins/wayland-graphics-integration-client/*.so',
++'resources/*/*/*/*/*/*',				# XXX yes, some of this stuff is that deep.
++'resources/*/*/*/*/*',
++'resources/*/*/*/*',
++'resources/*/*/*',
++'resources/*/*',
++'resources/*',
++'translations/qtwebengine_locales/*.pak',
++# files (./)
++'calibre', 'calibre-complete', 'calibre-customize', 'calibredb', 'calibre-debug', 'calibre-parallel', 'calibre_postinstall', 'calibre-server', 'calibre-smtp', 'ebook-convert', 'ebook-device', 'ebook-edit', 'ebook-meta', 'ebook-polish', 'ebook-viewer', 'fetch-ebook-metadata', 'lrf2lrs', 'lrfviewer', 'lrs2lrf', 'markdown-calibre', 'web2disk',
++# more files (./bin/)
++'bin/calibre', 'bin/calibre-complete', 'bin/calibre-customize', 'bin/calibredb', 'bin/calibre-debug', 'bin/calibre-parallel', 'bin/calibre_postinstall', 'bin/calibre-server', 'bin/calibre-smtp', 'bin/cjpeg', 'bin/ebook-convert', 'bin/ebook-device', 'bin/ebook-edit', 'bin/ebook-meta', 'bin/ebook-polish', 'bin/ebook-viewer', 'bin/fetch-ebook-metadata', 'bin/jpegtran', 'bin/JxrDecApp', 'bin/lrf2lrs', 'bin/lrfviewer', 'bin/lrs2lrf', 'bin/markdown-calibre', 'bin/optipng', 'bin/pdfinfo', 'bin/pdftohtml', 'bin/pdftoppm', 'bin/web2disk' ]
++
++
++## TODO make this updater run as non-root, ie. the calibre user, to make it less dangerous.
++
++import glob
++def remove_calibrefiles_instead_rm(destdir):
++    global DEBUG
++    if (destdir == '') or (destdir == '/'):
++       raise Exception("This destination dir '{0}' is REALLY bad. Refusing to delete anything. Exitting.".format(destdir))
++    for tgt in calibrefiles:
++        fulltgt = '{0}/{1}'.format(destdir, tgt)
++        if (DEBUG == True):    print("-> '{0}'".format(fulltgt))
++        if (fulltgt != ''):
++            tmpfiles = glob.glob(fulltgt)
++            if (DEBUG == True):    print("==> '{0}'".format(tmpfiles))
++            for fpath in tmpfiles:
++                isfile=0
++                try:
++                    os.remove(fpath)
++                    isfile=1
++                except:
++                    pass
++                if (isfile == 0):
++                    try:
++                        os.rmdir(fpath)
++                    except:
++                        print("Error deleting old calibre-file: {0}".format(fpath))
++
+ def download_and_extract(destdir, version):
+     get_tarball_info(version)
+     raw = download_tarball()
+ 
+     if os.path.exists(destdir):
+-        shutil.rmtree(destdir)
+-    os.makedirs(destdir)
++        remove_calibrefiles_instead_rm(destdir)
++    if (not os.path.isdir(destdir)):
++        os.makedirs(destdir)
+ 
+     print('Extracting files to %s ...'%destdir)
+     extract_tarball(raw, destdir)

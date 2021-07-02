@@ -1,0 +1,1 @@
+9371ffc00e96bf564561245706e33bc57071c9e3be4dab7958c677933a9727b9  /tmp/calibre_orig_installer.sh
