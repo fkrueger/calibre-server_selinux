@@ -1,13 +1,13 @@
 # vim: sw=4:ts=4:et
 
-%define relabel_files() \
-A=`getenforce` \
-setenforce 0 \
-restorecon -R /home/ /opt/calibre/ /opt/home/ /var/log/calibre*.log \
-setenforce $A
-
 %define calibreserver_ver 5.21.0
 %define selinux_policyver 3.14.3-1
+%define selinux_ppname calibre
+%define selinux_porttype calibre_port_t
+%define selinux_ports_tcp 9043 9080 9443
+%define selinux_ports_udp 5353
+%define selinux_dirs /home/ /opt/calibre/ /opt/home/ /var/log/calibre*.log
+
 
 Name:   calibre-server_selinux
 Version:	1.0
@@ -93,33 +93,38 @@ make -f /usr/share/selinux/devel/Makefile
 # install policy modules
 semodule -n -i %{_datadir}/selinux/packages/calibre-server.pp
 # then add port definitions and context mirroring (not yet working) for /opt/calibre/ to /home/calibre/ - stuff for /opt/calibre/
-for i in 9080 9043 9443; do
-    semanage port -a -t calibre_port_t -p tcp $i ||:
+## generic part
+for i in %{selinux_ports_tcp} XXX; do
+    [ "x$i" != "xXXX" ] && semanage port -a -t %{selinux_porttype} -p tcp $i ||:
 done
-semanage port -a -t calibre_port_t -p udp 5353 ||:
+for i in %{selinux_ports_udp} XXX; do
+    [ "x$i" != "xXXX" ] && semanage port -a -t %{selinux_porttype} -p udp $i ||:
+done
+## custom part
 semanage fcontext -a -e '/opt/calibre(/.*)?' '/home/[^/]+/calibre(/.*)?' ||:
-
 if /usr/sbin/selinuxenabled ; then
     /usr/sbin/load_policy
-    %relabel_files
-
+    restorecon -R %{selinux_dirs} ||:
 fi;
 exit 0
 
 %postun
 if [ $1 -eq 0 ]; then
-    # try to remove all port definitions and context-mirroring.
-    for i in 9043 9080 9443; do
-        semanage port -d -t calibre_port_t -p tcp $i ||:
+    # try to remove all our custom changes
+    ## generic parts
+    for i in %{selinux_ports_tcp} XXX; do
+        [ "x$i" != "xXXX" ] && semanage port -d -t %{selinux_porttype} -p tcp $i ||:
     done
-    semanage port -d -t calibre_port_t -p udp 5353 ||:
+    for i in %{selinux_ports_udp} XXX; do
+        [ "x$i" != "xXXX" ] && semanage port -d -t %{selinux_porttype} -p udp $i ||:
+    done
+    ## custom part
     semanage fcontext -d '/home/[^/]+/calibre(/.*)?' ||:
     # then try to remove the policy module
     semodule -n -r calibre-server
     if /usr/sbin/selinuxenabled ; then
        /usr/sbin/load_policy
-       %relabel_files
-
+       /usr/sbin/restorecon -R %{selinux_dirs} ||:
     fi;
 fi;
 exit 0
@@ -141,7 +146,7 @@ fi
 %attr(0600,root,root) %{_datadir}/selinux/packages/calibre-server.pp
 %{_datadir}/selinux/devel/include/contrib/calibre-server.if
 #%{_mandir}/man8/calibre-server_selinux.8.*
-%{_defaultdocdir}/%{name}-%{version}/readme.md
+%doc %{_defaultdocdir}/%{name}-%{version}/readme.md
 
 %files -n calibre-server-utils
 %attr(0644,root,root) /etc/cron.d/calibre-server
@@ -156,6 +161,6 @@ fi
 %attr(0644,root,root) %{_defaultdocdir}/%{name}-%{version}/readme.md
 
 %changelog
-* Mon Jun 20 2021 Frederic Krueger <fkrueger-dev-selinux_calibreserver@holics.at> 1.0-1
+* Mon Jul 12 2021 Frederic Krueger <fkrueger-dev-selinux_calibreserver@holics.at> 1.0-1
 - Initial version
 

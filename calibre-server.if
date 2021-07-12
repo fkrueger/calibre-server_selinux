@@ -1,1 +1,40 @@
-## <summary></summary>
+## <summary>policy for calibre</summary>
+
+########################################
+## <summary>
+##      Execute calibre_exec_t in the calibre domain.
+## </summary>
+## <param name="domain">
+## <summary>
+##      Domain allowed to transition.
+## </summary>
+## </param>
+#
+interface(`calibre_domtrans',`
+        gen_require(`
+                type calibre_t, calibre_exec_t;
+        ')
+
+        corecmd_search_bin($1)
+        domtrans_pattern($1, calibre_exec_t, calibre_t)
+')
+
+######################################
+## <summary>
+##      Execute calibre in the caller domain.
+## </summary>
+## <param name="domain">
+##      <summary>
+##      Domain allowed access.
+##      </summary>
+## </param>
+#
+interface(`calibre_exec',`
+        gen_require(`
+                type calibre_exec_t;
+        ')
+
+        corecmd_search_bin($1)
+        can_exec($1, calibre_exec_t)
+')
+
