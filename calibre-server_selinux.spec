@@ -11,7 +11,7 @@
 
 Name:   calibre-server_selinux
 Version:	1.0
-Release:	1%{?dist}
+Release:	4%{?dist}
 Summary:	SELinux policy module for calibre-server (based on the default installer)
 BuildRequires: policycoreutils, selinux-policy-devel
 Requires:	selinux-policy, selinux-policy-targeted
@@ -161,6 +161,15 @@ fi
 %attr(0644,root,root) %{_defaultdocdir}/%{name}-%{version}/readme.md
 
 %changelog
+* Wed Feb 15 2023 Frederic Krueger <fkrueger-dev-selinux_calibreserver@holics.at> 1.0-4
+- updated policy for newly added weirdness around rpm_script_t
+
+* Mon Aug 22 2022 Frederic Krueger <fkrueger-dev-selinux_calibreserver@holics.at> 1.0-3
+- added basic ipa_ passwd_file sssd_stream_connect support
+
+* Tue Aug 31 2021 Frederic Krueger <fkrueger-dev-selinux_calibreserver@holics.at> 1.0-2
+- added system_cronjob_t support
+
 * Mon Jul 12 2021 Frederic Krueger <fkrueger-dev-selinux_calibreserver@holics.at> 1.0-1
 - Initial version
 
