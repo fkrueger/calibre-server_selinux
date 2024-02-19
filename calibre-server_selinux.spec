@@ -11,7 +11,7 @@
 
 Name:   calibre-server_selinux
 Version:	1.0
-Release:	4%{?dist}
+Release:	7%{?dist}
 Summary:	SELinux policy module for calibre-server (based on the default installer)
 BuildRequires: policycoreutils, selinux-policy-devel
 Requires:	selinux-policy, selinux-policy-targeted
@@ -161,6 +161,12 @@ fi
 %attr(0644,root,root) %{_defaultdocdir}/%{name}-%{version}/readme.md
 
 %changelog
+* Mon Feb 19 2024 Frederic Krueger <fkrueger-dev-selinux_calibreserver@holics.at> 1.0-7
+- updated policy for snappy_search - access
+
+* Thu Jun 1 2023 Frederic Krueger <fkrueger-dev-selinux_calibreserver@holics.at> 1.0-5
+- updated policy for tmp_t access
+
 * Wed Feb 15 2023 Frederic Krueger <fkrueger-dev-selinux_calibreserver@holics.at> 1.0-4
 - updated policy for newly added weirdness around rpm_script_t
 

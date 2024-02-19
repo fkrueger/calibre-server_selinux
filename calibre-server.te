@@ -1,4 +1,4 @@
-policy_module(calibre-server, 20210713.1.5)
+policy_module(calibre-server, 20240219.1.7)
 
 # vim: softtabstop=2 tabstop=2 shiftwidth=2 expandtab
 
@@ -11,7 +11,7 @@ require {
   type system_cronjob_t;
   type unconfined_t;
   class dir { add_name create getattr search write };
-  class file { create getattr write };
+  class file { create getattr map write };
 
   type user_home_dir_t;
 
@@ -139,8 +139,10 @@ sssd_read_public_files(calibre_t)
 sssd_search_lib(calibre_t)
 
 # tmp ??
-#files_manage_generic_tmp_dirs(calibre_t)
-#files_manage_generic_tmp_files(calibre_t)
+files_manage_generic_tmp_dirs(calibre_t)
+files_manage_generic_tmp_files(calibre_t)
+
+snappy_search_lib(calibre_t)
 
 ## if calibre library resides in /home/user/Calibre Library/:
 #gnome_delete_home_config_dirs(calibre_t)
@@ -159,6 +161,7 @@ exec_files_pattern(calibre_t,calibre_bin_t,calibre_bin_t)
 
 
 allow calibre_t calibre_cache_t:dir getattr_dir_perms;
+allow calibre_t calibre_cache_t:file map;
 rw_dirs_pattern(calibre_t,calibre_cache_t,calibre_cache_t)
 manage_dirs_pattern(calibre_t,calibre_cache_t,calibre_cache_t)
 manage_files_pattern(calibre_t,calibre_cache_t,calibre_cache_t)
